@@ -155,6 +155,52 @@ describe('WorkspaceManager — validateArtifacts', () => {
   })
 })
 
+describe('WorkspaceManager — resolveArtifactsPath', () => {
+  let tempDir: string
+
+  afterEach(async () => {
+    if (tempDir) await rm(tempDir, { recursive: true, force: true })
+  })
+
+  it('returns same path when directory contains .md files', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'resolve-test-'))
+    const artifactsDir = join(tempDir, 'artifacts')
+    await mkdir(artifactsDir)
+    await writeFile(join(artifactsDir, 'prd.md'), '')
+
+    const result = await WorkspaceManager.resolveArtifactsPath(artifactsDir)
+    expect(result).toBe(artifactsDir)
+  })
+
+  it('returns BMAD nested path when input has no .md files but BMAD subdir does', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'resolve-test-'))
+    const projectDir = join(tempDir, 'my-project')
+    const bmadDir = join(projectDir, '_bmad-output', 'planning-artifacts')
+    await mkdir(bmadDir, { recursive: true })
+    await writeFile(join(bmadDir, 'prd.md'), '')
+
+    const result = await WorkspaceManager.resolveArtifactsPath(projectDir)
+    expect(result).toBe(bmadDir)
+  })
+
+  it('returns same path when no .md files and no BMAD subdir', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'resolve-test-'))
+    const emptyDir = join(tempDir, 'empty')
+    await mkdir(emptyDir)
+
+    const result = await WorkspaceManager.resolveArtifactsPath(emptyDir)
+    expect(result).toBe(emptyDir)
+  })
+
+  it('returns same path when directory does not exist', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'resolve-test-'))
+    const nonexistent = join(tempDir, 'nonexistent')
+
+    const result = await WorkspaceManager.resolveArtifactsPath(nonexistent)
+    expect(result).toBe(nonexistent)
+  })
+})
+
 describe('WorkspaceManager — ingestArtifacts', () => {
   let tempDir: string
   let manager: WorkspaceManager

@@ -10,6 +10,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   },
   artifactsPath: './planning-artifacts',
   workspacePath: '.startup-factory',
+  projectRoot: '.',
   cost: {
     tracking: true,
   },
@@ -18,7 +19,7 @@ export const DEFAULT_CONFIG: AppConfig = {
 export function validateConfig(raw: Record<string, unknown>): string[] {
   const errors: string[] = []
 
-  const knownKeys = new Set(['models', 'retry', 'artifactsPath', 'workspacePath', 'cost'])
+  const knownKeys = new Set(['models', 'retry', 'artifactsPath', 'workspacePath', 'projectRoot', 'cost', 'claudeMdPath'])
   for (const key of Object.keys(raw)) {
     if (!knownKeys.has(key)) {
       errors.push(`Unknown config key: "${key}"`)
@@ -72,6 +73,20 @@ export function validateConfig(raw: Record<string, unknown>): string[] {
     (typeof raw.workspacePath !== 'string' || raw.workspacePath === '')
   ) {
     errors.push(`workspacePath must be a non-empty string (got: ${JSON.stringify(raw.workspacePath)})`)
+  }
+
+  if (
+    raw.projectRoot !== undefined &&
+    (typeof raw.projectRoot !== 'string' || raw.projectRoot === '')
+  ) {
+    errors.push(`projectRoot must be a non-empty string (got: ${JSON.stringify(raw.projectRoot)})`)
+  }
+
+  if (
+    raw.claudeMdPath !== undefined &&
+    (typeof raw.claudeMdPath !== 'string' || raw.claudeMdPath === '')
+  ) {
+    errors.push(`claudeMdPath must be a non-empty string (got: ${JSON.stringify(raw.claudeMdPath)})`)
   }
 
   const cost = raw.cost

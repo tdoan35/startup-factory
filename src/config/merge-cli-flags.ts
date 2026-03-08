@@ -6,6 +6,8 @@ export interface CliFlags {
   model?: string
   artifactsPath?: string
   workspacePath?: string
+  claudeMdPath?: string
+  projectRoot?: string
 }
 
 export function mergeCliFlags(config: AppConfig, flags: CliFlags): AppConfig {
@@ -22,6 +24,7 @@ export function mergeCliFlags(config: AppConfig, flags: CliFlags): AppConfig {
     retry: { ...config.retry },
     artifactsPath: config.artifactsPath,
     workspacePath: config.workspacePath,
+    projectRoot: config.projectRoot,
     cost: { ...config.cost },
   }
 
@@ -36,6 +39,12 @@ export function mergeCliFlags(config: AppConfig, flags: CliFlags): AppConfig {
   }
   if (flags.workspacePath !== undefined) {
     result.workspacePath = flags.workspacePath
+  }
+  if (flags.projectRoot !== undefined) {
+    result.projectRoot = flags.projectRoot
+  }
+  if (flags.claudeMdPath !== undefined) {
+    result.claudeMdPath = flags.claudeMdPath
   }
 
   return result

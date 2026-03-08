@@ -25,11 +25,13 @@ describe('runDispatcher', () => {
     runner: mockRunner as never,
     stateManager: mockStateManager as never,
     workspacePath: '/workspace',
+    projectRoot: '/project',
     appConfig: {
       models: { default: 'claude-haiku-4-5-20251001', escalation: [] },
       retry: { maxAttempts: 3 },
       artifactsPath: '/artifacts',
       workspacePath: '/workspace',
+      projectRoot: '/project',
       cost: { tracking: false },
     } as never,
     log: mockLog,

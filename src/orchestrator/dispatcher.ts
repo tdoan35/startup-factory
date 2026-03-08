@@ -8,7 +8,9 @@ export interface DispatcherOptions {
   runner: AgentRunner
   stateManager: StateManager
   workspacePath: string
+  projectRoot: string
   appConfig: AppConfig
+  claudeMdContent?: string
   log: (msg: string) => void
   logError: (msg: string) => void
 }
@@ -19,7 +21,7 @@ export interface DispatcherResult {
 }
 
 export async function runDispatcher(opts: DispatcherOptions): Promise<DispatcherResult> {
-  const { runner, stateManager, workspacePath, appConfig, log, logError } = opts
+  const { runner, stateManager, workspacePath, appConfig, log, logError, projectRoot } = opts
   const costTracker = new CostTracker()
   let completedCount = 0
   let failedCount = 0
@@ -38,7 +40,9 @@ export async function runDispatcher(opts: DispatcherOptions): Promise<Dispatcher
         runner,
         stateManager,
         workspacePath,
+        projectRoot,
         appConfig,
+        claudeMdContent: opts.claudeMdContent,
         costTracker,
         log,
         logError,

@@ -16,6 +16,7 @@ const TEST_CONFIG: AgentConfig = {
   systemPrompt: 'You are a developer agent.',
   allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'],
   workspacePath: '/tmp/test-workspace',
+  projectRoot: '/tmp/test-project',
   prompt: 'Implement story 1-1.',
 }
 

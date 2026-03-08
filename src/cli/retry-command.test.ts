@@ -7,6 +7,7 @@ const mockConfig = {
   retry: { maxAttempts: 3 },
   artifactsPath: './planning-artifacts',
   workspacePath: '.startup-factory',
+  projectRoot: '.',
   cost: { tracking: true },
 }
 

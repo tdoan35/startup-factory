@@ -12,6 +12,7 @@ const baseConfig: AppConfig = {
   retry: { maxAttempts: 3 },
   artifactsPath: './planning-artifacts',
   workspacePath: '.startup-factory',
+  projectRoot: '.',
   cost: { tracking: true },
 }
 
@@ -103,5 +104,20 @@ describe('mergeCliFlags', () => {
 
   it('throws ConfigError for non-integer maxRetries', () => {
     expect(() => mergeCliFlags(baseConfig, { maxRetries: 1.5 })).toThrow(ConfigError)
+  })
+
+  it('overrides projectRoot with projectRoot flag', () => {
+    const result = mergeCliFlags(baseConfig, { projectRoot: '/custom/root' })
+    expect(result.projectRoot).toBe('/custom/root')
+  })
+
+  it('merges claudeMdPath when provided', () => {
+    const result = mergeCliFlags(baseConfig, { claudeMdPath: './CLAUDE.md' })
+    expect(result.claudeMdPath).toBe('./CLAUDE.md')
+  })
+
+  it('does not set claudeMdPath when not provided', () => {
+    const result = mergeCliFlags(baseConfig, {})
+    expect(result.claudeMdPath).toBeUndefined()
   })
 })

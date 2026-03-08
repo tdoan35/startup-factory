@@ -12,7 +12,8 @@ export type {
   StoryPhase,
   RunStatus,
 } from './types.js'
-export { parseEpicsFromArtifacts } from './artifact-parser.js'
-export type { EpicEntry } from './artifact-parser.js'
+export { parseEpicsFromArtifacts, parseEpicRange, filterEpicsByRange } from './artifact-parser.js'
+export type { EpicEntry, EpicRange } from './artifact-parser.js'
 export { writeFailureNote, readFailureNotes } from './failure-notes.js'
 export type { FailureNoteData } from './failure-notes.js'
+export { parseSprintStatus, readSprintStatus } from './sprint-status-reader.js'

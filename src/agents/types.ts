@@ -5,7 +5,9 @@ export interface AgentConfig {
   systemPrompt: string
   allowedTools: string[]
   workspacePath: string
+  projectRoot: string
   prompt: string
+  log?: (msg: string) => void
 }
 
 export interface AgentCostData {

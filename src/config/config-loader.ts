@@ -33,6 +33,7 @@ function mergeWithDefaults(raw: Record<string, unknown>): AppConfig {
     },
     artifactsPath: DEFAULT_CONFIG.artifactsPath,
     workspacePath: DEFAULT_CONFIG.workspacePath,
+    projectRoot: DEFAULT_CONFIG.projectRoot,
     cost: {
       tracking: DEFAULT_CONFIG.cost.tracking,
     },
@@ -61,6 +62,10 @@ function mergeWithDefaults(raw: Record<string, unknown>): AppConfig {
 
   if (typeof raw.workspacePath === 'string' && raw.workspacePath !== '') {
     config.workspacePath = raw.workspacePath
+  }
+
+  if (typeof raw.projectRoot === 'string' && raw.projectRoot !== '') {
+    config.projectRoot = raw.projectRoot
   }
 
   if (raw.cost && typeof raw.cost === 'object' && !Array.isArray(raw.cost)) {

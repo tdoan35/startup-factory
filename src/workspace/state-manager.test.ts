@@ -170,6 +170,28 @@ describe('StateManager', () => {
     await expect(stat(join(tempDir, '.state.yaml.tmp'))).rejects.toThrow()
   })
 
+  it('initialize() marks completedStories as completed', async () => {
+    const completedStories = new Set(['1-1'])
+    await manager.initialize(TEST_EPICS, TEST_CONFIG, completedStories)
+    const state = await manager.read()
+    expect(state.epics['epic-1'].stories['1-1']).toEqual({
+      status: 'completed',
+      phase: 'completed',
+      attempts: 0,
+      cost: 0,
+    })
+    // Other stories remain pending
+    expect(state.epics['epic-1'].stories['1-2'].status).toBe('pending')
+    expect(state.epics['epic-2'].stories['2-1'].status).toBe('pending')
+  })
+
+  it('initialize() with empty completedStories set leaves all stories pending', async () => {
+    await manager.initialize(TEST_EPICS, TEST_CONFIG, new Set())
+    const state = await manager.read()
+    expect(state.epics['epic-1'].stories['1-1'].status).toBe('pending')
+    expect(state.epics['epic-1'].stories['1-2'].status).toBe('pending')
+  })
+
   it('crash-safety: state.yaml is intact when .state.yaml.tmp exists as leftover', async () => {
     await manager.initialize(TEST_EPICS, TEST_CONFIG)
     const goodState = await manager.read()

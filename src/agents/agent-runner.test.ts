@@ -20,6 +20,7 @@ describe('AgentRunner interface', () => {
       systemPrompt: 'Test system prompt',
       allowedTools: ['Read'],
       workspacePath: '/tmp/test',
+      projectRoot: '/tmp/test',
       prompt: 'Do something',
     }
     const result = await runner.run(config)
@@ -33,6 +34,7 @@ describe('AgentRunner interface', () => {
       systemPrompt: 'Test',
       allowedTools: [],
       workspacePath: '/tmp/test',
+      projectRoot: '/tmp/test',
       prompt: 'Test prompt',
     }
     const result = await runner.run(config)

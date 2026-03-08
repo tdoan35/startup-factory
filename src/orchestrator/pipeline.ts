@@ -20,7 +20,9 @@ export interface PipelineOptions {
   runner: AgentRunner
   stateManager: StateManager
   workspacePath: string
+  projectRoot: string
   appConfig: AppConfig
+  claudeMdContent?: string
   startPhase?: PipelinePhase
   costTracker: CostTracker
   log: (msg: string) => void
@@ -50,11 +52,12 @@ function buildPhasePrompt(phase: PipelinePhase, epicKey: string, storyKey: strin
 }
 
 export async function runStoryPipeline(opts: PipelineOptions): Promise<'completed' | 'failed'> {
-  const { epicKey, storyKey, runner, stateManager, workspacePath, appConfig, costTracker, log, logError } = opts
+  const { epicKey, storyKey, runner, stateManager, workspacePath, appConfig, costTracker, log, logError, projectRoot } = opts
 
   await stateManager.updateStory(epicKey, storyKey, { status: 'in-progress', attempts: 1 })
 
   let storyAttempts = 0
+  let failureCount = 0
   let currentTier = 0
   const allTiers = [appConfig.models.default, ...appConfig.models.escalation]
 
@@ -83,8 +86,10 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
       // M4: removed ?? config.model fallback — evaluateEscalation guarantees valid tier indices
       const currentModel = allTiers[currentTier]
 
+      const isRetry = phaseAttempts > 1
       log(
-        `Dispatching ${phase} agent for story ${epicKey}/${storyKey} (attempt ${storyAttempts}, tier ${currentTier})`,
+        `${isRetry ? 'Retrying' : 'Dispatching'} ${phase} agent for story ${epicKey}/${storyKey}` +
+        `${isRetry ? ` (failure ${failureCount}/${appConfig.retry.maxAttempts}, tier ${currentTier})` : ''}`,
       )
 
       // H1: use phaseAttempts so storyCreation failure notes don't appear in development/codeReview/qa prompts
@@ -96,17 +101,24 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
       const basePrompt = rawPrompt
         .replaceAll('{{workspacePath}}', workspacePath)
         .replaceAll('{epic}-{story}', storyKey)
-      const systemPrompt =
+      const claudePrefix = opts.claudeMdContent
+        ? `## Project Context (CLAUDE.md)\n\n${opts.claudeMdContent}\n\n`
+        : ''
+      const systemPrompt = claudePrefix + (
         failureNotes.length > 0
           ? `${basePrompt}\n\n## Previous Failure Context\n\n${failureNotes.join('\n\n---\n\n')}`
           : basePrompt
+      )
 
+      const phaseLog = (msg: string) => log(msg.replace(/  Agent/g, `  ${phase} agent`))
       const result = await runner.run({
         model: currentModel,
         systemPrompt,
         allowedTools: config.allowedTools,
         workspacePath,
+        projectRoot,
         prompt: buildPhasePrompt(phase, epicKey, storyKey),
+        log: phaseLog,
       })
 
       costTracker.record(storyKey, result.cost)
@@ -128,14 +140,15 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
           escalationTier: currentTier,
         })
 
+        failureCount++
         logError(
-          `Phase ${phase} failed for story ${epicKey}/${storyKey} (attempt ${storyAttempts}): ${result.errorCategory}`,
+          `Phase ${phase} failed for story ${epicKey}/${storyKey} (failure ${failureCount}/${appConfig.retry.maxAttempts}): ${result.errorCategory}`,
         )
 
         const decision = evaluateEscalation(
           result.errorCategory,
           currentTier,
-          storyAttempts,
+          failureCount,
           appConfig.models,
           appConfig.retry.maxAttempts,
         )
@@ -187,12 +200,13 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
             failureNote: failureNotePath,
             escalationTier: currentTier,
           })
+          failureCount++
           logError(`Code review requested changes for story ${epicKey}/${storyKey}`)
 
           const decision = evaluateEscalation(
             ErrorCategory.Capability,
             currentTier,
-            storyAttempts,
+            failureCount,
             appConfig.models,
             appConfig.retry.maxAttempts,
           )

@@ -23,6 +23,7 @@ export function registerRetryCommand(program: Command): void {
         model: options.model,
       })
 
+      const projectRoot = resolve(effective.projectRoot)
       const workspacePath = resolve(effective.workspacePath)
       const stateManager = new StateManager(workspacePath)
 
@@ -64,6 +65,7 @@ export function registerRetryCommand(program: Command): void {
           runner: new ClaudeAgentRunner(),
           stateManager,
           workspacePath,
+          projectRoot,
           appConfig: effective,
           startPhase,
           log,

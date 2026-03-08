@@ -16,5 +16,7 @@ export interface AppConfig {
   retry: RetryConfig
   artifactsPath: string
   workspacePath: string
+  projectRoot: string
   cost: CostConfig
+  claudeMdPath?: string
 }

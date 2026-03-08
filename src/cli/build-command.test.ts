@@ -7,6 +7,7 @@ const mockConfig = {
   retry: { maxAttempts: 3 },
   artifactsPath: './planning-artifacts',
   workspacePath: '.startup-factory',
+  projectRoot: '.',
   cost: { tracking: true },
 }
 
@@ -23,6 +24,8 @@ const {
   mockLogError,
   mockComputeExitCode,
   mockParseEpicsFromArtifacts,
+  mockParseEpicRange,
+  mockFilterEpicsByRange,
   mockBuildCompletionSummary,
   mockFormatSummary,
 } = vi.hoisted(() => ({
@@ -34,7 +37,9 @@ const {
     ingestArtifacts: vi.fn().mockResolvedValue(undefined),
     artifactsPath: '/mock/workspace/artifacts',
   },
-  MockWorkspaceManager: vi.fn(),
+  MockWorkspaceManager: Object.assign(vi.fn(), {
+    resolveArtifactsPath: vi.fn().mockImplementation((p: string) => Promise.resolve(p)),
+  }),
   mockStateManager: {
     initialize: vi.fn().mockResolvedValue(undefined),
     updateRun: vi.fn().mockResolvedValue(undefined),
@@ -50,6 +55,8 @@ const {
   mockLogError: vi.fn(),
   mockComputeExitCode: vi.fn().mockReturnValue(0),
   mockParseEpicsFromArtifacts: vi.fn().mockResolvedValue([{ epicKey: 'epic-1', storyKeys: ['1-1'] }]),
+  mockParseEpicRange: vi.fn(),
+  mockFilterEpicsByRange: vi.fn(),
   mockBuildCompletionSummary: vi.fn().mockReturnValue({
     runStatus: 'completed',
     storiesCompleted: 1,
@@ -66,10 +73,23 @@ vi.mock('@/config/index.js', () => ({
   loadConfig: mockLoadConfig,
   mergeCliFlags: mockMergeCliFlags,
 }))
+const { mockReadSprintStatus, mockReadFile } = vi.hoisted(() => ({
+  mockReadSprintStatus: vi.fn().mockResolvedValue(new Map()),
+  mockReadFile: vi.fn().mockResolvedValue('mock claude md content'),
+}))
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return { ...actual, readFile: mockReadFile }
+})
+
 vi.mock('@/workspace/index.js', () => ({
   WorkspaceManager: MockWorkspaceManager,
   StateManager: MockStateManager,
   parseEpicsFromArtifacts: mockParseEpicsFromArtifacts,
+  parseEpicRange: mockParseEpicRange,
+  filterEpicsByRange: mockFilterEpicsByRange,
+  readSprintStatus: mockReadSprintStatus,
 }))
 vi.mock('@/orchestrator/dispatcher.js', () => ({ runDispatcher: mockRunDispatcher }))
 vi.mock('@/agents/index.js', () => ({ ClaudeAgentRunner: MockClaudeAgentRunner }))
@@ -85,7 +105,9 @@ describe('registerBuildCommand', () => {
     MockWorkspaceManager.mockImplementation(function() { return mockWorkspaceManager })
     MockStateManager.mockImplementation(function() { return mockStateManager })
     MockClaudeAgentRunner.mockImplementation(function() { return {} })
+    MockWorkspaceManager.resolveArtifactsPath.mockImplementation((p: string) => Promise.resolve(p))
     mockWorkspaceManager.validateArtifacts.mockResolvedValue({ valid: true, requiredFound: [], missingRequired: [], optionalFound: [] })
+    mockReadSprintStatus.mockResolvedValue(new Map())
     mockRunDispatcher.mockResolvedValue({ completedCount: 1, failedCount: 0 })
     mockComputeExitCode.mockReturnValue(0)
     vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never)
@@ -114,6 +136,7 @@ describe('registerBuildCommand', () => {
     expect(optionLongs).toContain('--artifacts-path')
     expect(optionLongs).toContain('--workspace-path')
     expect(optionLongs).toContain('--config')
+    expect(optionLongs).toContain('--project-root')
   })
 
   it('calls loadConfig and mergeCliFlags in action', async () => {
@@ -275,6 +298,75 @@ describe('registerBuildCommand', () => {
     await program.parseAsync(['node', 'sf', 'build', './artifacts', '--output', 'xml'])
 
     expect(mockLogError).toHaveBeenCalledWith('Invalid output format: xml. Use text, json, or yaml.')
+    expect(process.exit).toHaveBeenCalledWith(2)
+  })
+
+  it('registers --claude-md option', () => {
+    const program = new Command()
+    registerBuildCommand(program)
+    const buildCmd = program.commands.find(cmd => cmd.name() === 'build')!
+    const optionLongs = buildCmd.options.map(o => o.long)
+    expect(optionLongs).toContain('--claude-md')
+  })
+
+  it('passes --claude-md to mergeCliFlags as claudeMdPath', async () => {
+    const program = new Command()
+    program.exitOverride()
+    registerBuildCommand(program)
+
+    await program.parseAsync(['node', 'sf', 'build', './artifacts', '--claude-md', './CLAUDE.md'])
+
+    expect(mockMergeCliFlags).toHaveBeenCalledWith(
+      mockConfig,
+      expect.objectContaining({ claudeMdPath: './CLAUDE.md' }),
+    )
+  })
+
+  it('registers --epics option', () => {
+    const program = new Command()
+    registerBuildCommand(program)
+    const buildCmd = program.commands.find(cmd => cmd.name() === 'build')!
+    const optionLongs = buildCmd.options.map(o => o.long)
+    expect(optionLongs).toContain('--epics')
+  })
+
+  it('filters epics when --epics flag is provided', async () => {
+    const allEpics = [
+      { epicKey: 'epic-1', storyKeys: ['1-1'] },
+      { epicKey: 'epic-2', storyKeys: ['2-1'] },
+      { epicKey: 'epic-3', storyKeys: ['3-1'] },
+    ]
+    mockParseEpicsFromArtifacts.mockResolvedValue(allEpics)
+    mockParseEpicRange.mockReturnValue({ from: 1, to: 1 })
+    mockFilterEpicsByRange.mockReturnValue([allEpics[0]])
+
+    const program = new Command()
+    program.exitOverride()
+    registerBuildCommand(program)
+
+    await program.parseAsync(['node', 'sf', 'build', './artifacts', '--epics', '1'])
+
+    expect(mockParseEpicRange).toHaveBeenCalledWith('1')
+    expect(mockFilterEpicsByRange).toHaveBeenCalledWith(allEpics, { from: 1, to: 1 })
+    expect(mockStateManager.initialize).toHaveBeenCalledWith(
+      [allEpics[0]],
+      expect.anything(),
+      expect.anything(),
+    )
+  })
+
+  it('calls process.exit(2) when --epics matches no epics', async () => {
+    mockParseEpicsFromArtifacts.mockResolvedValue([{ epicKey: 'epic-1', storyKeys: ['1-1'] }])
+    mockParseEpicRange.mockReturnValue({ from: 99, to: 99 })
+    mockFilterEpicsByRange.mockReturnValue([])
+
+    const program = new Command()
+    program.exitOverride()
+    registerBuildCommand(program)
+
+    await program.parseAsync(['node', 'sf', 'build', './artifacts', '--epics', '99'])
+
+    expect(mockLogError).toHaveBeenCalledWith('No epics match range "99"')
     expect(process.exit).toHaveBeenCalledWith(2)
   })
 })

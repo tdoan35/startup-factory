@@ -1,4 +1,4 @@
-import { mkdir, readdir, copyFile } from 'node:fs/promises'
+import { mkdir, readdir, copyFile, access } from 'node:fs/promises'
 import { join, resolve, sep } from 'node:path'
 
 const STORY_KEY_PATTERN = /^[a-zA-Z0-9]+-[a-zA-Z0-9]+$/
@@ -25,6 +25,35 @@ export class WorkspaceManager {
   readonly workspacePath: string
   readonly artifactsPath: string
   readonly storiesPath: string
+
+  /**
+   * Resolves the actual artifacts path, auto-detecting BMAD directory structure.
+   * If the input path contains .md files matching required patterns, returns it as-is.
+   * Otherwise checks for `_bmad-output/planning-artifacts/` subdirectory.
+   */
+  static async resolveArtifactsPath(inputPath: string): Promise<string> {
+    // Check if inputPath itself has .md files
+    try {
+      const dirents = await readdir(inputPath, { withFileTypes: true })
+      const hasMd = dirents.some(d => d.isFile() && d.name.endsWith('.md'))
+      if (hasMd) return inputPath
+    } catch {
+      // Directory doesn't exist or can't be read — fall through
+    }
+
+    // Check BMAD nested structure
+    const bmadPath = join(inputPath, '_bmad-output', 'planning-artifacts')
+    try {
+      await access(bmadPath)
+      const dirents = await readdir(bmadPath, { withFileTypes: true })
+      const hasMd = dirents.some(d => d.isFile() && d.name.endsWith('.md'))
+      if (hasMd) return bmadPath
+    } catch {
+      // BMAD path doesn't exist — fall through
+    }
+
+    return inputPath
+  }
 
   constructor(workspacePath: string) {
     this.workspacePath = workspacePath

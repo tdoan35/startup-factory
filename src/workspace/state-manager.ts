@@ -6,6 +6,7 @@ import type {
   RunMeta,
   StoryState,
   StoryStatus,
+  StoryPhase,
   ConfigSnapshot,
 } from './types.js'
 
@@ -31,6 +32,7 @@ export class StateManager {
   async initialize(
     epics: Array<{ epicKey: string; storyKeys: string[] }>,
     config: ConfigSnapshot,
+    completedStories?: Set<string>,
   ): Promise<void> {
     const state: AppState = {
       run: {
@@ -45,10 +47,18 @@ export class StateManager {
           {
             status: 'pending' as const,
             stories: Object.fromEntries(
-              storyKeys.map(key => [
-                key,
-                { status: 'pending' as const, phase: 'pending' as const, attempts: 0, cost: 0 },
-              ])
+              storyKeys.map(key => {
+                const isCompleted = completedStories?.has(key)
+                return [
+                  key,
+                  {
+                    status: (isCompleted ? 'completed' : 'pending') as StoryStatus,
+                    phase: (isCompleted ? 'completed' : 'pending') as StoryPhase,
+                    attempts: 0,
+                    cost: 0,
+                  },
+                ]
+              })
             ),
           },
         ])

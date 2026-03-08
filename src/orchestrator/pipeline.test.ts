@@ -19,6 +19,7 @@ const makeAppConfig = (escalation: string[] = [], maxAttempts = 3) => ({
   retry: { maxAttempts },
   artifactsPath: '/artifacts',
   workspacePath: '/workspace',
+  projectRoot: '/project',
   cost: { tracking: false },
 })
 
@@ -46,6 +47,7 @@ describe('runStoryPipeline', () => {
     runner: mockRunner,
     stateManager: mockStateManager as never,
     workspacePath: '/workspace',
+    projectRoot: '/project',
     appConfig: makeAppConfig(),
     costTracker: mockCostTracker as never,
     log: mockLog,
@@ -294,7 +296,7 @@ describe('runStoryPipeline', () => {
     )
   })
 
-  it('flags story when CHANGES REQUESTED exhausts max attempts', async () => {
+  it('flags story when CHANGES REQUESTED exhausts all model tiers', async () => {
     const appConfig = makeAppConfig(['claude-sonnet-4-6'], 3)
     mockReadFile.mockImplementation((path: string) => {
       if (typeof path === 'string' && path.endsWith('review.md')) {
@@ -305,8 +307,9 @@ describe('runStoryPipeline', () => {
 
     const result = await runStoryPipeline({ ...baseOpts, appConfig })
     expect(result).toBe('failed')
-    // storyCreation(1) + development(2) + codeReview(3=maxAttempts) → flag
-    expect(mockRunner.run).toHaveBeenCalledTimes(3)
+    // storyCreation(1) + development(2) + codeReview CHANGES_REQUESTED(3, failureCount=1→escalate) +
+    // development re-run(4) + codeReview CHANGES_REQUESTED(5, failureCount=2→flag: all tiers exhausted)
+    expect(mockRunner.run).toHaveBeenCalledTimes(5)
     expect(mockLogError).toHaveBeenCalledWith(
       expect.stringContaining('flagged for human attention'),
     )
@@ -315,6 +318,30 @@ describe('runStoryPipeline', () => {
       '1-1',
       expect.objectContaining({ status: 'failed', phase: 'codeReview' }),
     )
+  })
+
+  it('successful phases do not consume retry budget', async () => {
+    const appConfig = makeAppConfig(['claude-sonnet-4-6'], 3)
+    let codeReviewCallCount = 0
+    mockReadFile.mockImplementation((path: string) => {
+      if (typeof path === 'string' && path.endsWith('review.md')) {
+        codeReviewCallCount++
+        // First code review requests changes, second approves
+        return codeReviewCallCount === 1
+          ? Promise.resolve('CHANGES REQUESTED\n\nPlease fix these issues.')
+          : Promise.resolve('APPROVED\n\nAll criteria met.')
+      }
+      return Promise.resolve('mock system prompt content')
+    })
+
+    const result = await runStoryPipeline({ ...baseOpts, appConfig })
+    expect(result).toBe('completed')
+    // storyCreation(1) + development(2) + codeReview CHANGES_REQUESTED(3, failureCount=1→escalate) +
+    // development re-run(4) + codeReview APPROVED(5) + qa(6) = 6 dispatches
+    expect(mockRunner.run).toHaveBeenCalledTimes(6)
+    // With the old bug, storyAttempts would be 3 at the first codeReview, immediately triggering flag.
+    // With failureCount, only the CHANGES REQUESTED counts as a failure (failureCount=1),
+    // so the story gets retried and eventually completes.
   })
 
   it('calls costTracker.record() once per phase with result.cost', async () => {
@@ -393,6 +420,26 @@ describe('runStoryPipeline', () => {
     const firstCallArgs = mockRunner.run.mock.calls[0][0]
     expect(firstCallArgs.systemPrompt).toContain('## Previous Failure Context')
     expect(firstCallArgs.systemPrompt).toContain('Previous run error details')
+  })
+
+  it('prepends CLAUDE.md content to system prompt when claudeMdContent is provided', async () => {
+    const result = await runStoryPipeline({
+      ...baseOpts,
+      claudeMdContent: '# Project Rules\n\nAlways use snake_case.',
+    })
+    expect(result).toBe('completed')
+    // Every phase dispatch should have the CLAUDE.md prefix
+    for (const call of mockRunner.run.mock.calls) {
+      expect(call[0].systemPrompt).toMatch(/^## Project Context \(CLAUDE\.md\)/)
+      expect(call[0].systemPrompt).toContain('Always use snake_case.')
+    }
+  })
+
+  it('does not prepend CLAUDE.md prefix when claudeMdContent is undefined', async () => {
+    await runStoryPipeline(baseOpts)
+    for (const call of mockRunner.run.mock.calls) {
+      expect(call[0].systemPrompt).not.toContain('## Project Context (CLAUDE.md)')
+    }
   })
 
   it('updates escalationTier and failureNote in state on failure', async () => {
