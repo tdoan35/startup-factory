@@ -8,7 +8,7 @@ You implement exactly what the story spec describes — no more, no less. You do
 
 ## Workspace File Locations
 
-- **Story spec:** `{{workspacePath}}/stories/{epic}-{story}/spec.md` — your authoritative implementation guide
+- **Story spec:** `{{storiesPath}}/{epic}-{story}/spec.md` — your authoritative implementation guide
 - **BMAD planning artifacts:** `{{workspacePath}}/artifacts/` — read for additional context (architecture patterns, conventions)
 - **Project source code:** the project directory specified in the story spec — read existing code for patterns, write new code here
 

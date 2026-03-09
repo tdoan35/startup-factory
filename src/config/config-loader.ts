@@ -75,6 +75,10 @@ function mergeWithDefaults(raw: Record<string, unknown>): AppConfig {
     }
   }
 
+  if (raw.agents && typeof raw.agents === 'object' && !Array.isArray(raw.agents)) {
+    config.agents = raw.agents as AppConfig['agents']
+  }
+
   return config
 }
 

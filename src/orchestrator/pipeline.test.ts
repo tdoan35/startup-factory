@@ -2,16 +2,18 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { runStoryPipeline } from './pipeline.js'
 import { ErrorCategory } from '@/errors/agent-error.js'
 
-const { mockReadFile } = vi.hoisted(() => ({ mockReadFile: vi.fn() }))
-vi.mock('node:fs/promises', () => ({ readFile: mockReadFile }))
+const { mockReadFile, mockMkdir } = vi.hoisted(() => ({ mockReadFile: vi.fn(), mockMkdir: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('node:fs/promises', () => ({ readFile: mockReadFile, mkdir: mockMkdir }))
 
-const { mockWriteFailureNote, mockReadFailureNotes } = vi.hoisted(() => ({
+const { mockWriteFailureNote, mockReadFailureNotes, mockUpdateSprintStatus } = vi.hoisted(() => ({
   mockWriteFailureNote: vi.fn().mockResolvedValue('/workspace/failures/attempt-1.md'),
   mockReadFailureNotes: vi.fn().mockResolvedValue([]),
+  mockUpdateSprintStatus: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('@/workspace/index.js', () => ({
   writeFailureNote: mockWriteFailureNote,
   readFailureNotes: mockReadFailureNotes,
+  updateSprintStatus: mockUpdateSprintStatus,
 }))
 
 const makeAppConfig = (escalation: string[] = [], maxAttempts = 3) => ({
@@ -48,6 +50,8 @@ describe('runStoryPipeline', () => {
     stateManager: mockStateManager as never,
     workspacePath: '/workspace',
     projectRoot: '/project',
+    storiesPath: '/stories',
+    implementationPath: '/implementation',
     appConfig: makeAppConfig(),
     costTracker: mockCostTracker as never,
     log: mockLog,

@@ -8,10 +8,10 @@ You do NOT write application code. You do NOT modify source files. You run tests
 
 ## Workspace File Locations
 
-- **Story spec:** `{{workspacePath}}/stories/{epic}-{story}/spec.md` — authoritative acceptance criteria
-- **Code review:** `{{workspacePath}}/stories/{epic}-{story}/review.md` — reviewer's verdict and findings
+- **Story spec:** `{{storiesPath}}/{epic}-{story}/spec.md` — authoritative acceptance criteria
+- **Code review:** `{{storiesPath}}/{epic}-{story}/review.md` — reviewer's verdict and findings
 - **Generated source code:** project source directory — use `Glob` to discover files
-- **Write QA report to:** `{{workspacePath}}/stories/{epic}-{story}/qa-report.md` — always a new file; create it with your verdict
+- **Write QA report to:** `{{storiesPath}}/{epic}-{story}/qa-report.md` — always a new file; create it with your verdict
 
 ## Validation Steps
 
@@ -19,11 +19,11 @@ Execute these steps in order. Do not skip any step.
 
 ### Step 1: Read the Story Spec
 
-Read `{{workspacePath}}/stories/{epic}-{story}/spec.md` completely. Extract and list every acceptance criterion (AC #1, AC #2, etc.) with the full text. This is your validation checklist.
+Read `{{storiesPath}}/{epic}-{story}/spec.md` completely. Extract and list every acceptance criterion (AC #1, AC #2, etc.) with the full text. This is your validation checklist.
 
 ### Step 2: Read the Code Review
 
-Read `{{workspacePath}}/stories/{epic}-{story}/review.md`. Note the verdict (APPROVED or CHANGES REQUESTED) and any action items listed. If the review is CHANGES REQUESTED, document this in your report.
+Read `{{storiesPath}}/{epic}-{story}/review.md`. Note the verdict (APPROVED or CHANGES REQUESTED) and any action items listed. If the review is CHANGES REQUESTED, document this in your report.
 
 ### Step 3: Run Tests
 
@@ -74,7 +74,7 @@ For each AC, determine PASS or FAIL:
 
 ## QA Report Output Format
 
-Write the QA report to `{{workspacePath}}/stories/{epic}-{story}/qa-report.md` using this exact structure:
+Write the QA report to `{{storiesPath}}/{epic}-{story}/qa-report.md` using this exact structure:
 
 ```markdown
 # QA Report

@@ -11,6 +11,10 @@ export interface CostConfig {
   tracking: boolean
 }
 
+export interface AgentPhaseConfig {
+  env?: Record<string, string>
+}
+
 export interface AppConfig {
   models: ModelsConfig
   retry: RetryConfig
@@ -19,4 +23,5 @@ export interface AppConfig {
   projectRoot: string
   cost: CostConfig
   claudeMdPath?: string
+  agents?: Partial<Record<'storyCreation' | 'development' | 'codeReview' | 'qa', AgentPhaseConfig>>
 }

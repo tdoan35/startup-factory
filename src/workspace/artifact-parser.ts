@@ -60,6 +60,55 @@ export function filterEpicsByRange(
   })
 }
 
+export interface StoryId {
+  epic: number
+  story: number
+}
+
+export interface StoryRange {
+  from: StoryId
+  to: StoryId
+}
+
+export function parseStoryId(id: string): StoryId {
+  if (!/^\d+-\d+$/.test(id)) {
+    throw new Error(`Invalid story ID: "${id}". Use format N-N (e.g. 1-1, 2-3).`)
+  }
+  const [epic, story] = id.split('-').map(Number)
+  return { epic, story }
+}
+
+function storyIdLte(a: StoryId, b: StoryId): boolean {
+  return a.epic < b.epic || (a.epic === b.epic && a.story <= b.story)
+}
+
+export function parseStoryRange(args: string[]): StoryRange {
+  if (args.length === 0 || args.length > 2) {
+    throw new Error(`Expected 1 or 2 story IDs, got ${args.length}.`)
+  }
+  const from = parseStoryId(args[0])
+  const to = args.length === 2 ? parseStoryId(args[1]) : { ...from }
+  if (!storyIdLte(from, to)) {
+    throw new Error(`Story range is reversed: ${args[0]} > ${args[1]}.`)
+  }
+  return { from, to }
+}
+
+export function filterEpicsByStoryRange(epics: EpicEntry[], range: StoryRange): EpicEntry[] {
+  const result: EpicEntry[] = []
+  for (const epic of epics) {
+    const filteredKeys = epic.storyKeys.filter(key => {
+      const [e, s] = key.split('-').map(Number)
+      const id: StoryId = { epic: e, story: s }
+      return storyIdLte(range.from, id) && storyIdLte(id, range.to)
+    })
+    if (filteredKeys.length > 0) {
+      result.push({ epicKey: epic.epicKey, storyKeys: filteredKeys })
+    }
+  }
+  return result
+}
+
 export async function parseEpicsFromArtifacts(artifactsPath: string): Promise<EpicEntry[]> {
   const files = await readdir(artifactsPath)
   const epicsFile = files.find(f => /(epic|stories).*\.md$/i.test(f))

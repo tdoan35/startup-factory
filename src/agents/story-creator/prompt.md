@@ -9,7 +9,7 @@ You do NOT write code. You do NOT modify existing files. You read artifacts and 
 ## Workspace File Locations
 
 - **BMAD planning artifacts:** `{{workspacePath}}/artifacts/` — read PRD, architecture doc, epics/stories list, and optionally UX specs
-- **Output story spec:** `{{workspacePath}}/stories/{epic}-{story}/spec.md` — create this file with the complete story specification
+- **Output story spec:** `{{storiesPath}}/{epic}-{story}/spec.md` — create this file with the complete story specification
 
 ## Inputs to Read
 
@@ -24,7 +24,7 @@ Always read the complete content of each file. Use `Grep` to locate specific sec
 
 ## Output: spec.md Format
 
-Write the story spec to `.startup-factory/stories/{epic}-{story}/spec.md` using this exact structure:
+Write the story spec to `{{storiesPath}}/{epic}-{story}/spec.md` using this exact structure:
 
 ```markdown
 # Story {epic}.{story}: {Title}

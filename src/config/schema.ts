@@ -19,7 +19,7 @@ export const DEFAULT_CONFIG: AppConfig = {
 export function validateConfig(raw: Record<string, unknown>): string[] {
   const errors: string[] = []
 
-  const knownKeys = new Set(['models', 'retry', 'artifactsPath', 'workspacePath', 'projectRoot', 'cost', 'claudeMdPath'])
+  const knownKeys = new Set(['models', 'retry', 'artifactsPath', 'workspacePath', 'projectRoot', 'cost', 'claudeMdPath', 'agents'])
   for (const key of Object.keys(raw)) {
     if (!knownKeys.has(key)) {
       errors.push(`Unknown config key: "${key}"`)
@@ -97,6 +97,39 @@ export function validateConfig(raw: Record<string, unknown>): string[] {
       const c = cost as Record<string, unknown>
       if (c.tracking !== undefined && typeof c.tracking !== 'boolean') {
         errors.push(`cost.tracking must be a boolean (got: ${JSON.stringify(c.tracking)})`)
+      }
+    }
+  }
+
+  const agents = raw.agents
+  if (agents !== undefined) {
+    if (typeof agents !== 'object' || agents === null || Array.isArray(agents)) {
+      errors.push('agents must be an object')
+    } else {
+      const validPhases = new Set(['storyCreation', 'development', 'codeReview', 'qa'])
+      const a = agents as Record<string, unknown>
+      for (const key of Object.keys(a)) {
+        if (!validPhases.has(key)) {
+          errors.push(`agents: unknown phase "${key}" (valid: storyCreation, development, codeReview, qa)`)
+          continue
+        }
+        const phaseConfig = a[key]
+        if (typeof phaseConfig !== 'object' || phaseConfig === null || Array.isArray(phaseConfig)) {
+          errors.push(`agents.${key} must be an object`)
+          continue
+        }
+        const pc = phaseConfig as Record<string, unknown>
+        if (pc.env !== undefined) {
+          if (typeof pc.env !== 'object' || pc.env === null || Array.isArray(pc.env)) {
+            errors.push(`agents.${key}.env must be an object`)
+          } else {
+            for (const [envKey, envVal] of Object.entries(pc.env as Record<string, unknown>)) {
+              if (typeof envVal !== 'string') {
+                errors.push(`agents.${key}.env.${envKey} must be a string (got: ${JSON.stringify(envVal)})`)
+              }
+            }
+          }
+        }
       }
     }
   }

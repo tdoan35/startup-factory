@@ -26,6 +26,8 @@ const {
   mockParseEpicsFromArtifacts,
   mockParseEpicRange,
   mockFilterEpicsByRange,
+  mockParseStoryRange,
+  mockFilterEpicsByStoryRange,
   mockBuildCompletionSummary,
   mockFormatSummary,
 } = vi.hoisted(() => ({
@@ -57,6 +59,8 @@ const {
   mockParseEpicsFromArtifacts: vi.fn().mockResolvedValue([{ epicKey: 'epic-1', storyKeys: ['1-1'] }]),
   mockParseEpicRange: vi.fn(),
   mockFilterEpicsByRange: vi.fn(),
+  mockParseStoryRange: vi.fn(),
+  mockFilterEpicsByStoryRange: vi.fn(),
   mockBuildCompletionSummary: vi.fn().mockReturnValue({
     runStatus: 'completed',
     storiesCompleted: 1,
@@ -78,9 +82,10 @@ const { mockReadSprintStatus, mockReadFile } = vi.hoisted(() => ({
   mockReadFile: vi.fn().mockResolvedValue('mock claude md content'),
 }))
 
+const { mockMkdir } = vi.hoisted(() => ({ mockMkdir: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
-  return { ...actual, readFile: mockReadFile }
+  return { ...actual, readFile: mockReadFile, mkdir: mockMkdir }
 })
 
 vi.mock('@/workspace/index.js', () => ({
@@ -89,6 +94,8 @@ vi.mock('@/workspace/index.js', () => ({
   parseEpicsFromArtifacts: mockParseEpicsFromArtifacts,
   parseEpicRange: mockParseEpicRange,
   filterEpicsByRange: mockFilterEpicsByRange,
+  parseStoryRange: mockParseStoryRange,
+  filterEpicsByStoryRange: mockFilterEpicsByStoryRange,
   readSprintStatus: mockReadSprintStatus,
 }))
 vi.mock('@/orchestrator/dispatcher.js', () => ({ runDispatcher: mockRunDispatcher }))
@@ -367,6 +374,67 @@ describe('registerBuildCommand', () => {
     await program.parseAsync(['node', 'sf', 'build', './artifacts', '--epics', '99'])
 
     expect(mockLogError).toHaveBeenCalledWith('No epics match range "99"')
+    expect(process.exit).toHaveBeenCalledWith(2)
+  })
+
+  it('registers --story option', () => {
+    const program = new Command()
+    registerBuildCommand(program)
+    const buildCmd = program.commands.find(cmd => cmd.name() === 'build')!
+    const optionLongs = buildCmd.options.map(o => o.long)
+    expect(optionLongs).toContain('--story')
+  })
+
+  it('filters stories when --story flag is provided', async () => {
+    const allEpics = [
+      { epicKey: 'epic-1', storyKeys: ['1-1', '1-2', '1-3'] },
+      { epicKey: 'epic-2', storyKeys: ['2-1'] },
+    ]
+    const filteredEpics = [
+      { epicKey: 'epic-1', storyKeys: ['1-1', '1-2', '1-3'] },
+    ]
+    mockParseEpicsFromArtifacts.mockResolvedValue(allEpics)
+    mockParseStoryRange.mockReturnValue({ from: { epic: 1, story: 1 }, to: { epic: 1, story: 3 } })
+    mockFilterEpicsByStoryRange.mockReturnValue(filteredEpics)
+
+    const program = new Command()
+    program.exitOverride()
+    registerBuildCommand(program)
+
+    await program.parseAsync(['node', 'sf', 'build', './artifacts', '--story', '1-1', '1-3'])
+
+    expect(mockParseStoryRange).toHaveBeenCalledWith(['1-1', '1-3'])
+    expect(mockFilterEpicsByStoryRange).toHaveBeenCalledWith(allEpics, { from: { epic: 1, story: 1 }, to: { epic: 1, story: 3 } })
+    expect(mockStateManager.initialize).toHaveBeenCalledWith(
+      filteredEpics,
+      expect.anything(),
+      expect.anything(),
+    )
+  })
+
+  it('calls process.exit(2) when --story matches no stories', async () => {
+    mockParseEpicsFromArtifacts.mockResolvedValue([{ epicKey: 'epic-1', storyKeys: ['1-1'] }])
+    mockParseStoryRange.mockReturnValue({ from: { epic: 99, story: 1 }, to: { epic: 99, story: 1 } })
+    mockFilterEpicsByStoryRange.mockReturnValue([])
+
+    const program = new Command()
+    program.exitOverride()
+    registerBuildCommand(program)
+
+    await program.parseAsync(['node', 'sf', 'build', './artifacts', '--story', '99-1'])
+
+    expect(mockLogError).toHaveBeenCalledWith('No stories match range "99-1"')
+    expect(process.exit).toHaveBeenCalledWith(2)
+  })
+
+  it('calls process.exit(2) when both --story and --epics are provided', async () => {
+    const program = new Command()
+    program.exitOverride()
+    registerBuildCommand(program)
+
+    await program.parseAsync(['node', 'sf', 'build', './artifacts', '--epics', '1', '--story', '1-1'])
+
+    expect(mockLogError).toHaveBeenCalledWith('--story and --epics are mutually exclusive')
     expect(process.exit).toHaveBeenCalledWith(2)
   })
 })

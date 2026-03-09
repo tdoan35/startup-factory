@@ -1,8 +1,8 @@
-import { resolve } from 'node:path'
-import { readFile } from 'node:fs/promises'
+import { resolve, join } from 'node:path'
+import { readFile, mkdir } from 'node:fs/promises'
 import { Command } from '@commander-js/extra-typings'
 import { loadConfig, mergeCliFlags } from '@/config/index.js'
-import { WorkspaceManager, StateManager, parseEpicsFromArtifacts, parseEpicRange, filterEpicsByRange, readSprintStatus } from '@/workspace/index.js'
+import { WorkspaceManager, StateManager, parseEpicsFromArtifacts, parseEpicRange, filterEpicsByRange, parseStoryRange, filterEpicsByStoryRange, readSprintStatus } from '@/workspace/index.js'
 import type { RunStatus } from '@/workspace/index.js'
 import { runDispatcher } from '@/orchestrator/dispatcher.js'
 import { ClaudeAgentRunner } from '@/agents/index.js'
@@ -23,11 +23,17 @@ export function registerBuildCommand(program: Command): void {
     .option('--config <path>', 'Path to config file')
     .option('--claude-md <path>', 'Path to CLAUDE.md for project context')
     .option('--epics <range>', 'Epic range to build (e.g. 1, 1-3, 2-, -3)')
+    .option('--story <ids...>', 'Story range to build (e.g. 1-1, or 1-1 1-3 for a range)')
     .option('--output <format>', 'Output format for completion summary (text, json, yaml)')
     .action(async (artifactPath, options) => {
       const outputFormat: OutputFormat = (options.output as OutputFormat) ?? 'text'
       if (!['text', 'json', 'yaml'].includes(outputFormat)) {
         logError(`Invalid output format: ${options.output}. Use text, json, or yaml.`)
+        process.exit(2)
+      }
+
+      if (options.story && options.epics) {
+        logError('--story and --epics are mutually exclusive')
         process.exit(2)
       }
 
@@ -44,6 +50,9 @@ export function registerBuildCommand(program: Command): void {
       const projectRoot = resolve(effective.projectRoot)
       const workspacePath = resolve(effective.workspacePath)
       const artifactsPath = await WorkspaceManager.resolveArtifactsPath(resolve(effective.artifactsPath))
+      const implementationPath = resolve(join(artifactsPath, '..', 'implementation-artifacts'))
+      const storiesPath = join(implementationPath, 'stories')
+      await mkdir(storiesPath, { recursive: true })
 
       const workspaceManager = new WorkspaceManager(workspacePath)
       await workspaceManager.initialize()
@@ -66,6 +75,16 @@ export function registerBuildCommand(program: Command): void {
           process.exit(2)
         }
         log(`Building epics: ${epics.map(e => e.epicKey).join(', ')}`)
+      }
+
+      if (options.story) {
+        const storyRange = parseStoryRange(options.story)
+        epics = filterEpicsByStoryRange(epics, storyRange)
+        if (epics.length === 0) {
+          logError(`No stories match range "${options.story.join(' ')}"`)
+          process.exit(2)
+        }
+        log(`Building stories: ${epics.flatMap(e => e.storyKeys).join(', ')}`)
       }
 
       const sprintStatus = await readSprintStatus(artifactsPath)
@@ -94,6 +113,8 @@ export function registerBuildCommand(program: Command): void {
         stateManager,
         workspacePath,
         projectRoot,
+        storiesPath,
+        implementationPath,
         appConfig: effective,
         claudeMdContent,
         log,

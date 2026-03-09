@@ -20,6 +20,7 @@ export class ClaudeAgentRunner implements AgentRunner {
           permissionMode: 'bypassPermissions',
           allowDangerouslySkipPermissions: true,
           persistSession: false,
+          ...(config.env ? { env: config.env } : {}),
         },
       })
 

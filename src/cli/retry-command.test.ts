@@ -40,8 +40,14 @@ vi.mock('@/config/index.js', () => ({
   mergeCliFlags: mockMergeCliFlags,
 }))
 
+const { MockWorkspaceManager } = vi.hoisted(() => ({
+  MockWorkspaceManager: Object.assign(vi.fn(), {
+    resolveArtifactsPath: vi.fn().mockImplementation((p: string) => Promise.resolve(p)),
+  }),
+}))
 vi.mock('@/workspace/index.js', () => ({
   StateManager: MockStateManager,
+  WorkspaceManager: MockWorkspaceManager,
 }))
 
 vi.mock('@/orchestrator/index.js', () => ({
@@ -50,6 +56,13 @@ vi.mock('@/orchestrator/index.js', () => ({
 
 vi.mock('@/agents/index.js', () => ({
   ClaudeAgentRunner: MockClaudeAgentRunner,
+}))
+
+const { MockCostTracker } = vi.hoisted(() => ({
+  MockCostTracker: vi.fn().mockImplementation(function() { return {} }),
+}))
+vi.mock('@/cost/index.js', () => ({
+  CostTracker: MockCostTracker,
 }))
 
 vi.mock('@/errors/agent-error.js', () => ({

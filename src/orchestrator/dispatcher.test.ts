@@ -26,6 +26,8 @@ describe('runDispatcher', () => {
     stateManager: mockStateManager as never,
     workspacePath: '/workspace',
     projectRoot: '/project',
+    storiesPath: '/stories',
+    implementationPath: '/implementation',
     appConfig: {
       models: { default: 'claude-haiku-4-5-20251001', escalation: [] },
       retry: { maxAttempts: 3 },

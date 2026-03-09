@@ -1,11 +1,12 @@
-import { resolve } from 'node:path'
+import { resolve, join } from 'node:path'
 import { Command } from '@commander-js/extra-typings'
 import { loadConfig, mergeCliFlags } from '@/config/index.js'
-import { StateManager } from '@/workspace/index.js'
+import { StateManager, WorkspaceManager } from '@/workspace/index.js'
 import type { StoryPhase } from '@/workspace/index.js'
 import { runStoryPipeline } from '@/orchestrator/index.js'
 import type { PipelinePhase } from '@/orchestrator/index.js'
 import { ClaudeAgentRunner } from '@/agents/index.js'
+import { CostTracker } from '@/cost/index.js'
 import { computeExitCode } from '@/errors/agent-error.js'
 import { log, logError } from '@/output/logger.js'
 
@@ -25,6 +26,9 @@ export function registerRetryCommand(program: Command): void {
 
       const projectRoot = resolve(effective.projectRoot)
       const workspacePath = resolve(effective.workspacePath)
+      const artifactsPath = await WorkspaceManager.resolveArtifactsPath(resolve(effective.artifactsPath))
+      const implementationPath = resolve(join(artifactsPath, '..', 'implementation-artifacts'))
+      const storiesPath = join(implementationPath, 'stories')
       const stateManager = new StateManager(workspacePath)
 
       const storyEntry = await stateManager.getStoryByKey(storyId)
@@ -57,6 +61,7 @@ export function registerRetryCommand(program: Command): void {
 
       log(`Retrying story ${storyId} from phase: ${startPhase ?? 'storyCreation (beginning)'}`)
 
+      const costTracker = new CostTracker()
       let outcome: 'completed' | 'failed'
       try {
         outcome = await runStoryPipeline({
@@ -66,7 +71,10 @@ export function registerRetryCommand(program: Command): void {
           stateManager,
           workspacePath,
           projectRoot,
+          storiesPath,
+          implementationPath,
           appConfig: effective,
+          costTracker,
           startPhase,
           log,
           logError,

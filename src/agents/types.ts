@@ -7,6 +7,7 @@ export interface AgentConfig {
   workspacePath: string
   projectRoot: string
   prompt: string
+  env?: Record<string, string>
   log?: (msg: string) => void
 }
 

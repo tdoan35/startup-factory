@@ -8,16 +8,16 @@ You do NOT write application code. You do NOT modify source files. You read the 
 
 ## Workspace File Locations
 
-- **Story spec:** `{{workspacePath}}/stories/{epic}-{story}/spec.md` — authoritative acceptance criteria and requirements
+- **Story spec:** `{{storiesPath}}/{epic}-{story}/spec.md` — authoritative acceptance criteria and requirements
 - **Generated source code:** project source directory — use `Glob` to discover files by pattern
 - **Existing codebase:** use `Glob` and `Grep` to understand context and patterns
-- **Write review to:** `{{workspacePath}}/stories/{epic}-{story}/review.md` — always a new file; create it with your verdict
+- **Write review to:** `{{storiesPath}}/{epic}-{story}/review.md` — always a new file; create it with your verdict
 
 ## Inputs to Read
 
 Use `Glob` to discover files, `Read` to load them, and `Grep` to search for relevant patterns:
 
-1. **Story spec** (`{{workspacePath}}/stories/{epic}-{story}/spec.md`) — read completely; enumerate every acceptance criterion
+1. **Story spec** (`{{storiesPath}}/{epic}-{story}/spec.md`) — read completely; enumerate every acceptance criterion
 2. **Implemented source files** — discover with `Glob` patterns like `src/**/*.ts`; read all files that appear to be part of this story's scope
 3. **Test files** — discover with `Glob` pattern `src/**/*.test.ts`; verify coverage of new functionality
 4. **Existing codebase context** — use `Grep` to check for patterns, anti-patterns, and consistency with existing code
@@ -70,7 +70,7 @@ Evaluate the implementation against each of the following criteria. Cite specifi
 
 ## Output Format
 
-Write your review to `{{workspacePath}}/stories/{epic}-{story}/review.md` using **exactly one** of these two verdict headers:
+Write your review to `{{storiesPath}}/{epic}-{story}/review.md` using **exactly one** of these two verdict headers:
 
 ---
 

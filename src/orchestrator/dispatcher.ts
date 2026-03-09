@@ -9,6 +9,8 @@ export interface DispatcherOptions {
   stateManager: StateManager
   workspacePath: string
   projectRoot: string
+  storiesPath: string
+  implementationPath: string
   appConfig: AppConfig
   claudeMdContent?: string
   log: (msg: string) => void
@@ -21,7 +23,7 @@ export interface DispatcherResult {
 }
 
 export async function runDispatcher(opts: DispatcherOptions): Promise<DispatcherResult> {
-  const { runner, stateManager, workspacePath, appConfig, log, logError, projectRoot } = opts
+  const { runner, stateManager, workspacePath, appConfig, log, logError, projectRoot, storiesPath, implementationPath } = opts
   const costTracker = new CostTracker()
   let completedCount = 0
   let failedCount = 0
@@ -41,6 +43,8 @@ export async function runDispatcher(opts: DispatcherOptions): Promise<Dispatcher
         stateManager,
         workspacePath,
         projectRoot,
+        storiesPath,
+        implementationPath,
         appConfig,
         claudeMdContent: opts.claudeMdContent,
         costTracker,

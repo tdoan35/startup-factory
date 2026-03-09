@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AgentRunner } from '@/agents/agent-runner.js'
 import type { CostTracker } from '@/cost/index.js'
@@ -13,6 +13,7 @@ import type { AgentRoleConfig } from '@/agents/types.js'
 import { evaluateEscalation } from './escalation.js'
 import { AgentError, ErrorCategory } from '@/errors/index.js'
 import type { AppConfig } from '@/config/index.js'
+import { updateSprintStatus } from '@/workspace/index.js'
 
 export interface PipelineOptions {
   epicKey: string
@@ -21,6 +22,8 @@ export interface PipelineOptions {
   stateManager: StateManager
   workspacePath: string
   projectRoot: string
+  storiesPath: string
+  implementationPath: string
   appConfig: AppConfig
   claudeMdContent?: string
   startPhase?: PipelinePhase
@@ -52,8 +55,9 @@ function buildPhasePrompt(phase: PipelinePhase, epicKey: string, storyKey: strin
 }
 
 export async function runStoryPipeline(opts: PipelineOptions): Promise<'completed' | 'failed'> {
-  const { epicKey, storyKey, runner, stateManager, workspacePath, appConfig, costTracker, log, logError, projectRoot } = opts
+  const { epicKey, storyKey, runner, stateManager, workspacePath, appConfig, costTracker, log, logError, projectRoot, storiesPath, implementationPath } = opts
 
+  await mkdir(join(storiesPath, storyKey), { recursive: true })
   await stateManager.updateStory(epicKey, storyKey, { status: 'in-progress', attempts: 1 })
 
   let storyAttempts = 0
@@ -87,8 +91,10 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
       const currentModel = allTiers[currentTier]
 
       const isRetry = phaseAttempts > 1
+      const envNote = appConfig.agents?.[phase]?.env ? ', custom env' : ''
       log(
         `${isRetry ? 'Retrying' : 'Dispatching'} ${phase} agent for story ${epicKey}/${storyKey}` +
+        ` [${currentModel}${envNote}]` +
         `${isRetry ? ` (failure ${failureCount}/${appConfig.retry.maxAttempts}, tier ${currentTier})` : ''}`,
       )
 
@@ -100,6 +106,7 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
       const rawPrompt = await readFile(config.promptPath, 'utf-8')
       const basePrompt = rawPrompt
         .replaceAll('{{workspacePath}}', workspacePath)
+        .replaceAll('{{storiesPath}}', storiesPath)
         .replaceAll('{epic}-{story}', storyKey)
       const claudePrefix = opts.claudeMdContent
         ? `## Project Context (CLAUDE.md)\n\n${opts.claudeMdContent}\n\n`
@@ -118,6 +125,7 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
         workspacePath,
         projectRoot,
         prompt: buildPhasePrompt(phase, epicKey, storyKey),
+        env: appConfig.agents?.[phase]?.env,
         log: phaseLog,
       })
 
@@ -167,6 +175,9 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
             status: 'failed',
             phase: phase as StoryPhase,
           })
+          try {
+            await updateSprintStatus(implementationPath, storyKey, 'in-progress')
+          } catch { /* best-effort */ }
           return 'failed'
         }
 
@@ -182,7 +193,7 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
 
       // Phase succeeded — check code review result before marking phase done
       if (phase === 'codeReview') {
-        const reviewPath = join(workspacePath, 'stories', storyKey, 'review.md')
+        const reviewPath = join(storiesPath, storyKey, 'review.md')
         const reviewContent = await readFile(reviewPath, 'utf-8').catch(() => result.output)
         if (reviewContent.includes('CHANGES REQUESTED')) {
           // M1: do not increment storyAttempts again — already incremented at top of loop
@@ -218,6 +229,9 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
           if (decision.action === 'flag') {
             logError(`Story ${epicKey}/${storyKey} flagged for human attention: ${decision.reason}`)
             await stateManager.updateStory(epicKey, storyKey, { status: 'failed', phase: 'codeReview' })
+            try {
+              await updateSprintStatus(implementationPath, storyKey, 'in-progress')
+            } catch { /* best-effort */ }
             return 'failed'
           }
 
@@ -248,6 +262,11 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
   }
 
   await stateManager.updateStory(epicKey, storyKey, { status: 'completed', phase: 'completed' })
+  try {
+    await updateSprintStatus(implementationPath, storyKey, 'done')
+  } catch {
+    log(`Warning: could not update sprint-status.yaml for ${storyKey}`)
+  }
   log(`Story ${epicKey}/${storyKey} completed successfully`)
   return 'completed'
 }

@@ -1,5 +1,5 @@
 import { vi, describe, it, expect } from 'vitest'
-import { parseEpicsContent, parseEpicsFromArtifacts, parseEpicRange, filterEpicsByRange } from './artifact-parser.js'
+import { parseEpicsContent, parseEpicsFromArtifacts, parseEpicRange, filterEpicsByRange, parseStoryId, parseStoryRange, filterEpicsByStoryRange } from './artifact-parser.js'
 import type { EpicEntry } from './artifact-parser.js'
 
 const { mockReaddir, mockReadFile } = vi.hoisted(() => ({
@@ -139,5 +139,96 @@ describe('filterEpicsByRange', () => {
   it('returns empty for no matches', () => {
     const result = filterEpicsByRange(epics, { from: 99, to: 99 })
     expect(result).toEqual([])
+  })
+})
+
+describe('parseStoryId', () => {
+  it('parses valid story ID', () => {
+    expect(parseStoryId('1-1')).toEqual({ epic: 1, story: 1 })
+    expect(parseStoryId('2-3')).toEqual({ epic: 2, story: 3 })
+  })
+
+  it('throws on invalid format', () => {
+    expect(() => parseStoryId('1')).toThrow('Invalid story ID: "1". Use format N-N')
+    expect(() => parseStoryId('abc')).toThrow('Invalid story ID: "abc". Use format N-N')
+    expect(() => parseStoryId('1-2-3')).toThrow('Invalid story ID: "1-2-3". Use format N-N')
+    expect(() => parseStoryId('')).toThrow('Invalid story ID: "". Use format N-N')
+  })
+})
+
+describe('parseStoryRange', () => {
+  it('parses single story', () => {
+    const range = parseStoryRange(['1-1'])
+    expect(range).toEqual({ from: { epic: 1, story: 1 }, to: { epic: 1, story: 1 } })
+  })
+
+  it('parses two-story range', () => {
+    const range = parseStoryRange(['1-1', '1-3'])
+    expect(range).toEqual({ from: { epic: 1, story: 1 }, to: { epic: 1, story: 3 } })
+  })
+
+  it('parses cross-epic range', () => {
+    const range = parseStoryRange(['1-2', '2-1'])
+    expect(range).toEqual({ from: { epic: 1, story: 2 }, to: { epic: 2, story: 1 } })
+  })
+
+  it('throws on reversed range', () => {
+    expect(() => parseStoryRange(['2-1', '1-1'])).toThrow('Story range is reversed')
+  })
+
+  it('throws on wrong arg count', () => {
+    expect(() => parseStoryRange([])).toThrow('Expected 1 or 2 story IDs, got 0')
+    expect(() => parseStoryRange(['1-1', '1-2', '1-3'])).toThrow('Expected 1 or 2 story IDs, got 3')
+  })
+})
+
+describe('filterEpicsByStoryRange', () => {
+  const epics: EpicEntry[] = [
+    { epicKey: 'epic-1', storyKeys: ['1-1', '1-2', '1-3'] },
+    { epicKey: 'epic-2', storyKeys: ['2-1', '2-2'] },
+    { epicKey: 'epic-3', storyKeys: ['3-1'] },
+  ]
+
+  it('filters to single story', () => {
+    const result = filterEpicsByStoryRange(epics, {
+      from: { epic: 1, story: 2 },
+      to: { epic: 1, story: 2 },
+    })
+    expect(result).toEqual([{ epicKey: 'epic-1', storyKeys: ['1-2'] }])
+  })
+
+  it('filters within-epic range', () => {
+    const result = filterEpicsByStoryRange(epics, {
+      from: { epic: 1, story: 1 },
+      to: { epic: 1, story: 3 },
+    })
+    expect(result).toEqual([{ epicKey: 'epic-1', storyKeys: ['1-1', '1-2', '1-3'] }])
+  })
+
+  it('filters cross-epic range', () => {
+    const result = filterEpicsByStoryRange(epics, {
+      from: { epic: 1, story: 2 },
+      to: { epic: 2, story: 1 },
+    })
+    expect(result).toEqual([
+      { epicKey: 'epic-1', storyKeys: ['1-2', '1-3'] },
+      { epicKey: 'epic-2', storyKeys: ['2-1'] },
+    ])
+  })
+
+  it('returns empty when no stories match', () => {
+    const result = filterEpicsByStoryRange(epics, {
+      from: { epic: 99, story: 1 },
+      to: { epic: 99, story: 1 },
+    })
+    expect(result).toEqual([])
+  })
+
+  it('excludes epics with no matching stories', () => {
+    const result = filterEpicsByStoryRange(epics, {
+      from: { epic: 2, story: 1 },
+      to: { epic: 2, story: 2 },
+    })
+    expect(result).toEqual([{ epicKey: 'epic-2', storyKeys: ['2-1', '2-2'] }])
   })
 })
