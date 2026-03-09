@@ -3,12 +3,12 @@ import type { AppConfig } from './types.js'
 export const DEFAULT_CONFIG: AppConfig = {
   models: {
     default: 'claude-sonnet-4-6',
-    escalation: ['claude-sonnet-4-6', 'claude-opus-4-6'],
+    escalation: ['claude-opus-4-6'],
   },
   retry: {
     maxAttempts: 3,
   },
-  artifactsPath: './planning-artifacts',
+  artifactsPath: './_bmad-output/planning-artifacts',
   workspacePath: '.startup-factory',
   projectRoot: '.',
   cost: {

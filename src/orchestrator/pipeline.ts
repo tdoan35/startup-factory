@@ -87,8 +87,8 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
     while (!phaseSuccess) {
       storyAttempts++
       phaseAttempts++
-      // Use per-agent model override if configured, otherwise use escalation ladder
-      const agentModelOverride = appConfig.agents?.[phase]?.model
+      // Per-agent override only applies at initial tier; once escalated, use the escalation ladder
+      const agentModelOverride = currentTier === 0 ? appConfig.agents?.[phase]?.model : undefined
       const currentModel = agentModelOverride ?? allTiers[currentTier]
 
       const isRetry = phaseAttempts > 1

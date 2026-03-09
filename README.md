@@ -7,7 +7,7 @@ Startup Factory is not a copilot — it's an autopilot. It removes the human fro
 ## How It Works
 
 1. **Plan** — Create BMAD planning artifacts (product brief, PRD, architecture, epics/stories)
-2. **Build** — Run `startup-factory build <artifact-path>` and walk away
+2. **Build** — Run `startup-factory build` from your project root and walk away
 3. **Wake up** — Come back to a codebase with passing tests and clear status on what completed
 
 The pipeline dispatches four specialist agents in sequence per story:
@@ -37,23 +37,31 @@ Set your `ANTHROPIC_API_KEY` in the `.env` file.
 
 ## Usage
 
+`sf` is a shorthand alias for `startup-factory` — both work interchangeably.
+
 ```bash
-# Run a full build from planning artifacts
-startup-factory build <artifact-path>
+# Run a full build (auto-detects _bmad-output/planning-artifacts/)
+sf build
+
+# Or specify artifact path explicitly
+sf build <artifact-path>
 
 # Build specific epics or stories
-startup-factory build <artifact-path> --epics 1-3
-startup-factory build <artifact-path> --story 1-1
-startup-factory build <artifact-path> --story 1-1 1-5   # range
+sf build --epics 1-3
+sf build --story 1-1
+sf build --story 1-1 1-5   # range
 
 # Check build status
-startup-factory status
+sf status
 
 # Retry a failed story
-startup-factory retry <story-id>
+sf retry <story-id>
 
 # View cost breakdown
-startup-factory cost
+sf cost
+
+# Get suggested next action
+sf next
 ```
 
 ### Build Options
@@ -76,6 +84,13 @@ startup-factory cost
 ```
 --max-retries <n>        Maximum retry attempts
 --model <model>          Default model to use
+--config <path>          Path to config file
+```
+
+### Next Options
+
+```
+--workspace-path <path>  Workspace directory path
 --config <path>          Path to config file
 ```
 

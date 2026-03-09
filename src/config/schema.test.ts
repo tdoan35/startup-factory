@@ -4,7 +4,7 @@ import { DEFAULT_CONFIG, validateConfig } from './schema.js'
 describe('DEFAULT_CONFIG', () => {
   it('has the expected default values', () => {
     expect(DEFAULT_CONFIG.models.default).toBe('claude-sonnet-4-6')
-    expect(DEFAULT_CONFIG.models.escalation).toEqual(['claude-sonnet-4-6', 'claude-opus-4-6'])
+    expect(DEFAULT_CONFIG.models.escalation).toEqual(['claude-opus-4-6'])
     expect(DEFAULT_CONFIG.retry.maxAttempts).toBe(3)
     expect(DEFAULT_CONFIG.artifactsPath).toBe('./planning-artifacts')
     expect(DEFAULT_CONFIG.workspacePath).toBe('.startup-factory')

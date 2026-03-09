@@ -4,7 +4,8 @@
   "type": "module",
   "description": "Autonomous MVP builder powered by AI agents",
   "bin": {
-    "startup-factory": "./dist/index.js"
+    "startup-factory": "./dist/index.js",
+    "sf": "./dist/index.js"
   },
   "engines": {
     "node": ">=20"

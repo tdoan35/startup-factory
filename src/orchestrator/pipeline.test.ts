@@ -401,6 +401,62 @@ describe('runStoryPipeline', () => {
     expect(mockRunner.run.mock.calls[3][0].model).toBe('claude-haiku-4-5-20251001')
   })
 
+  it('bypasses per-agent model override after escalation (tier > 0)', async () => {
+    const appConfig = {
+      ...makeAppConfig(['claude-sonnet-4-6'], 5),
+      agents: { development: { model: 'glm-4.7', env: { ANTHROPIC_BASE_URL: 'https://api.z.ai/api/anthropic' } } },
+    }
+    // storyCreation succeeds, development fails with Capability → escalate
+    mockRunner.run
+      .mockResolvedValueOnce({
+        success: true,
+        output: '',
+        cost: { inputTokens: 0, outputTokens: 0, totalCostUsd: 0.01, modelUsed: 'claude-haiku-4-5-20251001' },
+      })
+      .mockResolvedValueOnce({
+        success: false,
+        output: 'agent could not complete task',
+        errorCategory: ErrorCategory.Capability,
+        cost: { inputTokens: 0, outputTokens: 0, totalCostUsd: 0, modelUsed: 'glm-4.7' },
+      })
+      .mockResolvedValue({
+        success: true,
+        output: '',
+        cost: { inputTokens: 0, outputTokens: 0, totalCostUsd: 0.01, modelUsed: 'claude-sonnet-4-6' },
+      })
+
+    const result = await runStoryPipeline({ ...baseOpts, appConfig })
+    expect(result).toBe('completed')
+    // development (call index 1) should use override at tier 0
+    expect(mockRunner.run.mock.calls[1][0].model).toBe('glm-4.7')
+    // development retry (call index 2) should use escalated model, not override
+    expect(mockRunner.run.mock.calls[2][0].model).toBe('claude-sonnet-4-6')
+  })
+
+  it('bypasses per-agent model override after CHANGES REQUESTED escalation', async () => {
+    const appConfig = {
+      ...makeAppConfig(['claude-sonnet-4-6'], 10),
+      agents: { development: { model: 'glm-4.7', env: { ANTHROPIC_BASE_URL: 'https://api.z.ai/api/anthropic' } } },
+    }
+    let codeReviewCallCount = 0
+    mockReadFile.mockImplementation((path: string) => {
+      if (typeof path === 'string' && path.endsWith('review.md')) {
+        codeReviewCallCount++
+        return codeReviewCallCount === 1
+          ? Promise.resolve('CHANGES REQUESTED\n\nPlease fix these issues.')
+          : Promise.resolve('APPROVED\n\nAll criteria met.')
+      }
+      return Promise.resolve('mock system prompt content')
+    })
+
+    const result = await runStoryPipeline({ ...baseOpts, appConfig })
+    expect(result).toBe('completed')
+    // storyCreation(0) + dev(1, override) + codeReview(2) + dev re-run(3, escalated) + codeReview(4) + qa(5)
+    expect(mockRunner.run.mock.calls[1][0].model).toBe('glm-4.7')
+    // dev re-run after CHANGES REQUESTED should use escalated model
+    expect(mockRunner.run.mock.calls[3][0].model).toBe('claude-sonnet-4-6')
+  })
+
   it('skips storyCreation when startPhase is "development"', async () => {
     const result = await runStoryPipeline({ ...baseOpts, startPhase: 'development' })
     expect(result).toBe('completed')

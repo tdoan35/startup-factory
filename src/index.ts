@@ -1,5 +1,5 @@
 import { Command } from '@commander-js/extra-typings'
-import { registerBuildCommand, registerRetryCommand, registerStatusCommand, registerCostCommand } from '@/cli'
+import { registerBuildCommand, registerRetryCommand, registerStatusCommand, registerCostCommand, registerNextCommand } from '@/cli'
 import { handleUncaughtException, handleUnhandledRejection } from '@/errors'
 
 process.on('uncaughtException', handleUncaughtException)
@@ -15,5 +15,6 @@ registerBuildCommand(program)
 registerRetryCommand(program)
 registerStatusCommand(program)
 registerCostCommand(program)
+registerNextCommand(program)
 
 program.parse()

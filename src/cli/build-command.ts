@@ -1,5 +1,5 @@
 import { resolve, join } from 'node:path'
-import { readFile, mkdir } from 'node:fs/promises'
+import { readFile, mkdir, access } from 'node:fs/promises'
 import { Command } from '@commander-js/extra-typings'
 import { loadConfig, mergeCliFlags } from '@/config/index.js'
 import { WorkspaceManager, StateManager, parseEpicsFromArtifacts, parseEpicRange, filterEpicsByRange, parseStoryRange, filterEpicsByStoryRange, readSprintStatus } from '@/workspace/index.js'
@@ -13,7 +13,7 @@ import type { OutputFormat } from '@/output/summary.js'
 
 export function registerBuildCommand(program: Command): void {
   program
-    .command('build <artifact-path>')
+    .command('build [artifact-path]')
     .description('Run the full build pipeline')
     .option('--max-retries <n>', 'Maximum retry attempts', (s) => parseInt(s, 10))
     .option('--model <model>', 'Default model to use')
@@ -26,7 +26,7 @@ export function registerBuildCommand(program: Command): void {
     .option('--story <ids...>', 'Story range to build (e.g. 1-1, or 1-1 1-3 for a range)')
     .option('--output <format>', 'Output format for completion summary (text, json, yaml)')
     .option('--fresh', 'Force a clean build, ignoring any previous run state')
-    .action(async (artifactPath, options) => {
+    .action(async (artifactPath = '.', options) => {
       const outputFormat: OutputFormat = (options.output as OutputFormat) ?? 'text'
       if (!['text', 'json', 'yaml'].includes(outputFormat)) {
         logError(`Invalid output format: ${options.output}. Use text, json, or yaml.`)
@@ -51,6 +51,15 @@ export function registerBuildCommand(program: Command): void {
       const projectRoot = resolve(effective.projectRoot)
       const workspacePath = resolve(effective.workspacePath)
       const artifactsPath = await WorkspaceManager.resolveArtifactsPath(resolve(effective.artifactsPath))
+
+      try {
+        await access(artifactsPath)
+      } catch {
+        logError(`Artifacts directory not found: ${artifactsPath}`)
+        logError('Run from your project root or provide the path: sf build <artifact-path>')
+        process.exit(2)
+      }
+
       const implementationPath = resolve(join(artifactsPath, '..', 'implementation-artifacts'))
       const storiesPath = join(implementationPath, 'stories')
       await mkdir(storiesPath, { recursive: true })
