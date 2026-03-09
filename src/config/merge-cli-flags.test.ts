@@ -120,4 +120,19 @@ describe('mergeCliFlags', () => {
     const result = mergeCliFlags(baseConfig, {})
     expect(result.claudeMdPath).toBeUndefined()
   })
+
+  it('preserves agents config from config file', () => {
+    const configWithAgents: AppConfig = {
+      ...baseConfig,
+      agents: { development: { model: 'glm-4.7', env: { ANTHROPIC_BASE_URL: 'https://api.z.ai' } } },
+    }
+    const result = mergeCliFlags(configWithAgents, {})
+    expect(result.agents).toEqual(configWithAgents.agents)
+  })
+
+  it('preserves claudeMdPath from config file when no CLI flag overrides it', () => {
+    const configWithClaudeMd: AppConfig = { ...baseConfig, claudeMdPath: './project-CLAUDE.md' }
+    const result = mergeCliFlags(configWithClaudeMd, {})
+    expect(result.claudeMdPath).toBe('./project-CLAUDE.md')
+  })
 })

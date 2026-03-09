@@ -26,6 +26,8 @@ export function mergeCliFlags(config: AppConfig, flags: CliFlags): AppConfig {
     workspacePath: config.workspacePath,
     projectRoot: config.projectRoot,
     cost: { ...config.cost },
+    ...(config.agents && { agents: config.agents }),
+    ...(config.claudeMdPath && { claudeMdPath: config.claudeMdPath }),
   }
 
   if (flags.maxRetries !== undefined) {
