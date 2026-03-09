@@ -96,6 +96,23 @@ describe('validateConfig', () => {
     expect(errors[0]).toContain('cost.tracking')
   })
 
+  it('accepts valid agents.development.model', () => {
+    const errors = validateConfig({ agents: { development: { model: 'glm-4.7' } } })
+    expect(errors).toEqual([])
+  })
+
+  it('returns error for empty agents.development.model', () => {
+    const errors = validateConfig({ agents: { development: { model: '' } } })
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('agents.development.model')
+  })
+
+  it('returns error for non-string agents.development.model', () => {
+    const errors = validateConfig({ agents: { development: { model: 42 } } })
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('agents.development.model')
+  })
+
   it('returns all errors at once for multiple invalid fields', () => {
     const errors = validateConfig({
       retry: { maxAttempts: -1 },

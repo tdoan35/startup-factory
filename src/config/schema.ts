@@ -119,6 +119,9 @@ export function validateConfig(raw: Record<string, unknown>): string[] {
           continue
         }
         const pc = phaseConfig as Record<string, unknown>
+        if (pc.model !== undefined && (typeof pc.model !== 'string' || pc.model === '')) {
+          errors.push(`agents.${key}.model must be a non-empty string`)
+        }
         if (pc.env !== undefined) {
           if (typeof pc.env !== 'object' || pc.env === null || Array.isArray(pc.env)) {
             errors.push(`agents.${key}.env must be an object`)

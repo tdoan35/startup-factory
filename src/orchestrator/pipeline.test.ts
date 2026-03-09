@@ -384,6 +384,23 @@ describe('runStoryPipeline', () => {
     )
   })
 
+  it('uses per-agent model override instead of escalation tier model', async () => {
+    const appConfig = {
+      ...makeAppConfig(['claude-sonnet-4-6'], 5),
+      agents: { development: { model: 'glm-4.7', env: { ANTHROPIC_BASE_URL: 'https://api.z.ai/api/anthropic' } } },
+    }
+
+    const result = await runStoryPipeline({ ...baseOpts, appConfig })
+    expect(result).toBe('completed')
+    // development is the 2nd phase (index 1), so 2nd runner.run call
+    const devCallArgs = mockRunner.run.mock.calls[1][0]
+    expect(devCallArgs.model).toBe('glm-4.7')
+    // Other phases should use the default model
+    expect(mockRunner.run.mock.calls[0][0].model).toBe('claude-haiku-4-5-20251001')
+    expect(mockRunner.run.mock.calls[2][0].model).toBe('claude-haiku-4-5-20251001')
+    expect(mockRunner.run.mock.calls[3][0].model).toBe('claude-haiku-4-5-20251001')
+  })
+
   it('skips storyCreation when startPhase is "development"', async () => {
     const result = await runStoryPipeline({ ...baseOpts, startPhase: 'development' })
     expect(result).toBe('completed')

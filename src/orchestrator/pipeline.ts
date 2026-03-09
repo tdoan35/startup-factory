@@ -87,14 +87,16 @@ export async function runStoryPipeline(opts: PipelineOptions): Promise<'complete
     while (!phaseSuccess) {
       storyAttempts++
       phaseAttempts++
-      // M4: removed ?? config.model fallback — evaluateEscalation guarantees valid tier indices
-      const currentModel = allTiers[currentTier]
+      // Use per-agent model override if configured, otherwise use escalation ladder
+      const agentModelOverride = appConfig.agents?.[phase]?.model
+      const currentModel = agentModelOverride ?? allTiers[currentTier]
 
       const isRetry = phaseAttempts > 1
       const envNote = appConfig.agents?.[phase]?.env ? ', custom env' : ''
+      const modelNote = agentModelOverride ? ' (override)' : ''
       log(
         `${isRetry ? 'Retrying' : 'Dispatching'} ${phase} agent for story ${epicKey}/${storyKey}` +
-        ` [${currentModel}${envNote}]` +
+        ` [${currentModel}${modelNote}${envNote}]` +
         `${isRetry ? ` (failure ${failureCount}/${appConfig.retry.maxAttempts}, tier ${currentTier})` : ''}`,
       )
 

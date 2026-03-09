@@ -12,6 +12,7 @@ export interface CostConfig {
 }
 
 export interface AgentPhaseConfig {
+  model?: string
   env?: Record<string, string>
 }
 
