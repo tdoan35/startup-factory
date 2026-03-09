@@ -41,26 +41,57 @@ Set your `ANTHROPIC_API_KEY` in the `.env` file.
 # Run a full build from planning artifacts
 startup-factory build <artifact-path>
 
+# Build specific epics or stories
+startup-factory build <artifact-path> --epics 1-3
+startup-factory build <artifact-path> --story 1-1
+startup-factory build <artifact-path> --story 1-1 1-5   # range
+
 # Check build status
 startup-factory status
 
-# Retry failed stories
-startup-factory retry
+# Retry a failed story
+startup-factory retry <story-id>
 
 # View cost breakdown
 startup-factory cost
 ```
 
-### Options
+### Build Options
 
 ```
 --max-retries <n>        Maximum retry attempts
 --model <model>          Default model to use
 --artifacts-path <path>  Artifacts directory path
 --workspace-path <path>  Workspace directory path
+--project-root <path>    Project root directory (where source code lives)
 --config <path>          Path to config file
+--claude-md <path>       Path to CLAUDE.md for project context
+--epics <range>          Epic range to build (e.g. 1, 1-3, 2-, -3)
+--story <ids...>         Story range to build (e.g. 1-1, or 1-1 1-3)
 --output <format>        Output format: text, json, yaml
 ```
+
+### Retry Options
+
+```
+--max-retries <n>        Maximum retry attempts
+--model <model>          Default model to use
+--config <path>          Path to config file
+```
+
+### Artifact Layout
+
+Planning artifacts are read from the path you provide (typically `_bmad-output/planning-artifacts/`). Story artifacts (specs, reviews, QA reports) are written to the sibling `implementation-artifacts/stories/` directory:
+
+```
+_bmad-output/
+├── planning-artifacts/    # Input: PRD, architecture, epics
+└── implementation-artifacts/
+    ├── stories/           # Output: spec.md, review.md, qa-report.md per story
+    └── sprint-status.yaml # Updated automatically on story completion/failure
+```
+
+Internal pipeline state is tracked separately in `.startup-factory/state.yaml`.
 
 ## Development
 
