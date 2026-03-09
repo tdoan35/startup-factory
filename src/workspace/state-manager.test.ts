@@ -192,6 +192,73 @@ describe('StateManager', () => {
     expect(state.epics['epic-1'].stories['1-2'].status).toBe('pending')
   })
 
+  describe('resume from previous state', () => {
+    it('resumes in-progress story with resumeFromPhase set to recorded phase', async () => {
+      await manager.initialize(TEST_EPICS, TEST_CONFIG)
+      await manager.updateStory('epic-1', '1-1', { status: 'in-progress', phase: 'development' })
+
+      // Re-initialize (simulates re-running build)
+      await manager.initialize(TEST_EPICS, TEST_CONFIG)
+      const state = await manager.read()
+      expect(state.epics['epic-1'].stories['1-1'].status).toBe('pending')
+      expect(state.epics['epic-1'].stories['1-1'].resumeFromPhase).toBe('development')
+    })
+
+    it('keeps completed story as completed on resume', async () => {
+      await manager.initialize(TEST_EPICS, TEST_CONFIG)
+      await manager.updateStory('epic-1', '1-1', { status: 'completed', phase: 'completed' })
+
+      await manager.initialize(TEST_EPICS, TEST_CONFIG)
+      const state = await manager.read()
+      expect(state.epics['epic-1'].stories['1-1'].status).toBe('completed')
+      expect(state.epics['epic-1'].stories['1-1'].phase).toBe('completed')
+      expect(state.epics['epic-1'].stories['1-1'].resumeFromPhase).toBeUndefined()
+    })
+
+    it('resets failed story to pending without resumeFromPhase', async () => {
+      await manager.initialize(TEST_EPICS, TEST_CONFIG)
+      await manager.updateStory('epic-1', '1-1', { status: 'failed', phase: 'development' })
+
+      await manager.initialize(TEST_EPICS, TEST_CONFIG)
+      const state = await manager.read()
+      expect(state.epics['epic-1'].stories['1-1'].status).toBe('pending')
+      expect(state.epics['epic-1'].stories['1-1'].resumeFromPhase).toBeUndefined()
+    })
+
+    it('does not set resumeFromPhase for in-progress story still in pending phase', async () => {
+      await manager.initialize(TEST_EPICS, TEST_CONFIG)
+      await manager.updateStory('epic-1', '1-1', { status: 'in-progress', phase: 'pending' })
+
+      await manager.initialize(TEST_EPICS, TEST_CONFIG)
+      const state = await manager.read()
+      expect(state.epics['epic-1'].stories['1-1'].status).toBe('pending')
+      expect(state.epics['epic-1'].stories['1-1'].resumeFromPhase).toBeUndefined()
+    })
+
+    it('--fresh flag ignores previous state entirely', async () => {
+      await manager.initialize(TEST_EPICS, TEST_CONFIG)
+      await manager.updateStory('epic-1', '1-1', { status: 'in-progress', phase: 'development' })
+      await manager.updateStory('epic-1', '1-2', { status: 'completed', phase: 'completed' })
+
+      await manager.initialize(TEST_EPICS, TEST_CONFIG, undefined, true)
+      const state = await manager.read()
+      expect(state.epics['epic-1'].stories['1-1'].status).toBe('pending')
+      expect(state.epics['epic-1'].stories['1-1'].resumeFromPhase).toBeUndefined()
+      expect(state.epics['epic-1'].stories['1-2'].status).toBe('pending')
+    })
+
+    it('completedStories from sprint-status takes priority over previous state', async () => {
+      await manager.initialize(TEST_EPICS, TEST_CONFIG)
+      await manager.updateStory('epic-1', '1-1', { status: 'in-progress', phase: 'development' })
+
+      const completedStories = new Set(['1-1'])
+      await manager.initialize(TEST_EPICS, TEST_CONFIG, completedStories)
+      const state = await manager.read()
+      expect(state.epics['epic-1'].stories['1-1'].status).toBe('completed')
+      expect(state.epics['epic-1'].stories['1-1'].resumeFromPhase).toBeUndefined()
+    })
+  })
+
   it('crash-safety: state.yaml is intact when .state.yaml.tmp exists as leftover', async () => {
     await manager.initialize(TEST_EPICS, TEST_CONFIG)
     const goodState = await manager.read()

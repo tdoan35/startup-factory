@@ -359,6 +359,7 @@ describe('registerBuildCommand', () => {
       [allEpics[0]],
       expect.anything(),
       expect.anything(),
+      undefined,
     )
   })
 
@@ -409,6 +410,7 @@ describe('registerBuildCommand', () => {
       filteredEpics,
       expect.anything(),
       expect.anything(),
+      undefined,
     )
   })
 

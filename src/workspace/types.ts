@@ -22,6 +22,7 @@ export interface StoryState {
   cost: number
   escalationTier?: number
   failureNote?: string
+  resumeFromPhase?: StoryPhase
 }
 
 export interface EpicState {

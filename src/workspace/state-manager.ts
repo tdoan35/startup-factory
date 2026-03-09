@@ -29,11 +29,22 @@ export class StateManager {
     return result
   }
 
+  private async tryReadPreviousState(): Promise<AppState | null> {
+    try {
+      return await this.read()
+    } catch {
+      return null
+    }
+  }
+
   async initialize(
     epics: Array<{ epicKey: string; storyKeys: string[] }>,
     config: ConfigSnapshot,
     completedStories?: Set<string>,
+    fresh?: boolean,
   ): Promise<void> {
+    const previousState = fresh ? null : await this.tryReadPreviousState()
+
     const state: AppState = {
       run: {
         status: 'running',
@@ -49,15 +60,28 @@ export class StateManager {
             stories: Object.fromEntries(
               storyKeys.map(key => {
                 const isCompleted = completedStories?.has(key)
-                return [
-                  key,
-                  {
-                    status: (isCompleted ? 'completed' : 'pending') as StoryStatus,
-                    phase: (isCompleted ? 'completed' : 'pending') as StoryPhase,
-                    attempts: 0,
-                    cost: 0,
-                  },
-                ]
+                if (isCompleted) {
+                  return [key, { status: 'completed' as StoryStatus, phase: 'completed' as StoryPhase, attempts: 0, cost: 0 }]
+                }
+
+                // Check previous state for resumption
+                const oldStory = previousState?.epics[epicKey]?.stories[key]
+                if (oldStory) {
+                  if (oldStory.status === 'completed') {
+                    return [key, { status: 'completed' as StoryStatus, phase: 'completed' as StoryPhase, attempts: 0, cost: 0 }]
+                  }
+                  if (oldStory.status === 'in-progress' && oldStory.phase !== 'pending') {
+                    return [key, {
+                      status: 'pending' as StoryStatus,
+                      phase: 'pending' as StoryPhase,
+                      attempts: 0,
+                      cost: 0,
+                      resumeFromPhase: oldStory.phase as StoryPhase,
+                    }]
+                  }
+                }
+
+                return [key, { status: 'pending' as StoryStatus, phase: 'pending' as StoryPhase, attempts: 0, cost: 0 }]
               })
             ),
           },

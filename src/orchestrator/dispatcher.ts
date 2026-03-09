@@ -3,6 +3,7 @@ import type { StateManager } from '@/workspace/index.js'
 import type { AppConfig } from '@/config/index.js'
 import { CostTracker } from '@/cost/index.js'
 import { runStoryPipeline } from './pipeline.js'
+import type { PipelinePhase } from './pipeline.js'
 
 export interface DispatcherOptions {
   runner: AgentRunner
@@ -32,8 +33,14 @@ export async function runDispatcher(opts: DispatcherOptions): Promise<Dispatcher
     const pending = await stateManager.getStoriesByStatus('pending')
     if (pending.length === 0) break
 
-    const { epicKey, storyKey } = pending[0]
-    log(`Starting story ${epicKey}/${storyKey}`)
+    const story = pending[0]
+    const { epicKey, storyKey } = story
+    const resumePhase = story.resumeFromPhase as PipelinePhase | undefined
+    if (resumePhase) {
+      log(`Resuming story ${epicKey}/${storyKey} from ${resumePhase} (skipping earlier phases)`)
+    } else {
+      log(`Starting story ${epicKey}/${storyKey}`)
+    }
     let outcome: 'completed' | 'failed'
     try {
       outcome = await runStoryPipeline({
@@ -48,6 +55,7 @@ export async function runDispatcher(opts: DispatcherOptions): Promise<Dispatcher
         appConfig,
         claudeMdContent: opts.claudeMdContent,
         costTracker,
+        startPhase: resumePhase,
         log,
         logError,
       })

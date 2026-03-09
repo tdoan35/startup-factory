@@ -25,6 +25,7 @@ export function registerBuildCommand(program: Command): void {
     .option('--epics <range>', 'Epic range to build (e.g. 1, 1-3, 2-, -3)')
     .option('--story <ids...>', 'Story range to build (e.g. 1-1, or 1-1 1-3 for a range)')
     .option('--output <format>', 'Output format for completion summary (text, json, yaml)')
+    .option('--fresh', 'Force a clean build, ignoring any previous run state')
     .action(async (artifactPath, options) => {
       const outputFormat: OutputFormat = (options.output as OutputFormat) ?? 'text'
       if (!['text', 'json', 'yaml'].includes(outputFormat)) {
@@ -101,7 +102,7 @@ export function registerBuildCommand(program: Command): void {
       await stateManager.initialize(epics, {
         defaultModel: effective.models.default,
         maxRetries: effective.retry.maxAttempts,
-      }, completedStories)
+      }, completedStories, options.fresh)
 
       let claudeMdContent: string | undefined
       if (effective.claudeMdPath) {

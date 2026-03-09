@@ -130,6 +130,31 @@ describe('runDispatcher', () => {
     expect(mockStateManager.updateRun).toHaveBeenCalledWith({ totalCost: 0 })
   })
 
+  it('passes startPhase from resumeFromPhase to pipeline', async () => {
+    const resumeStory = { ...makeStory('epic-1', '1-1'), resumeFromPhase: 'development' as const }
+    mockStateManager.getStoriesByStatus
+      .mockResolvedValueOnce([resumeStory])
+      .mockResolvedValueOnce([])
+    mockRunStoryPipeline.mockResolvedValue('completed')
+    await runDispatcher(baseOpts)
+    expect(mockRunStoryPipeline).toHaveBeenCalledWith(
+      expect.objectContaining({ epicKey: 'epic-1', storyKey: '1-1', startPhase: 'development' })
+    )
+    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('Resuming story epic-1/1-1 from development'))
+  })
+
+  it('does not pass startPhase when resumeFromPhase is undefined', async () => {
+    mockStateManager.getStoriesByStatus
+      .mockResolvedValueOnce([makeStory('epic-1', '1-1')])
+      .mockResolvedValueOnce([])
+    mockRunStoryPipeline.mockResolvedValue('completed')
+    await runDispatcher(baseOpts)
+    expect(mockRunStoryPipeline).toHaveBeenCalledWith(
+      expect.objectContaining({ startPhase: undefined })
+    )
+    expect(mockLog).toHaveBeenCalledWith('Starting story epic-1/1-1')
+  })
+
   it('logs and rethrows when runStoryPipeline throws a system error', async () => {
     mockStateManager.getStoriesByStatus.mockResolvedValueOnce([makeStory('epic-1', '1-1')])
     const systemError = new Error('File system failure')
