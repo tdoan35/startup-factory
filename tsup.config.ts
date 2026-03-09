@@ -20,9 +20,10 @@ export default defineConfig({
   format: ['esm'],
   target: 'node20',
   dts: false,
-  shims: true,
   banner: {
-    js: '#!/usr/bin/env node'
+    js: `#!/usr/bin/env node
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);`
   },
   async onSuccess() {
     await copyMdFiles('src', 'dist')
